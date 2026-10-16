@@ -1,0 +1,48 @@
+name: YouTube to WAV
+
+on:
+  workflow_dispatch:
+    inputs:
+      url:
+        description: "Link del video o della playlist YouTube"
+        required: true
+      tipo:
+        description: "Cosa vuoi scaricare?"
+        type: choice
+        default: playlist
+        options:
+          - playlist
+          - singolo
+
+jobs:
+  download:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Installa ffmpeg e yt-dlp
+        run: |
+          sudo apt-get update && sudo apt-get install -y ffmpeg
+          pip install -U yt-dlp
+
+      - name: Scarica e converti in WAV
+        env:
+          URL: ${{ inputs.url }}
+          TIPO: ${{ inputs.tipo }}
+        run: |
+          if [ "$TIPO" = "singolo" ]; then
+            FLAG="--no-playlist"
+          else
+            FLAG="--yes-playlist"
+          fi
+          yt-dlp --js-runtimes node $FLAG -x --audio-format wav \
+            -o "out/%(playlist_index|)s%(playlist_index& - |)s%(title)s.%(ext)s" \
+            --ignore-errors "$URL"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: wav
+          path: out/
+          retention-days: 3
